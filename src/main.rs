@@ -4,12 +4,25 @@ use bevy_rapier3d::prelude::*;
 #[derive(Component)]
 struct Player;
 
+fn setup_ground(
+    mut commands: Commands,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    // plane
+    commands.spawn(PbrBundle {
+        mesh: meshes.add(shape::Plane::from_size(100.0).into()),
+        material: materials.add(Color::rgb(0.3, 0.5, 0.3).into()),
+        ..default()
+    });
+}
+
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(ClearColor(Color::rgb(0.4, 0.4, 0.4)));
 
     let camera = Camera3dBundle {
         projection: PerspectiveProjection { ..default() }.into(),
-        transform: Transform::from_xyz(10.0, 10.0, 10.0)
+        transform: Transform::from_xyz(11.0, 3.0, 11.0)
             .looking_at(Vec3::new(0.0, 4.0, 0.0), Vec3::Y)
             .with_scale(Vec3::splat(9.)),
         ..default()
@@ -22,7 +35,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             shadows_enabled: true,
             ..default()
         },
-        transform: Transform::from_xyz(4.0, 8.0, 4.0),
+        transform: Transform::from_xyz(4.0, 5.0, 4.0),
         ..default()
     });
 
@@ -32,20 +45,22 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             commands
                 .spawn(SceneBundle {
                     scene: tree_handle.clone_weak(),
-                    transform: Transform::from_translation(Vec3::new(2.0 * x as f32, 0.0, 2.0 * z as f32))
-                        .with_scale(Vec3::splat(1.0)),
+                    transform: Transform::from_translation(Vec3::new(
+                        2.0 * x as f32,
+                        0.0,
+                        2.0 * z as f32,
+                    ))
+                    .with_scale(Vec3::splat(1.0)),
 
                     ..default()
                 })
                 .insert(RigidBody::Fixed)
                 .insert(Collider::cuboid(0.4, 1.0, 0.4));
-                //.insert(ColliderDebugColor(Color::GREEN));
+            //.insert(ColliderDebugColor(Color::GREEN));
         }
     }
 
-    commands.insert_resource(Animations(vec![
-        asset_server.load("guy.glb#Animation0"),
-    ]));
+    commands.insert_resource(Animations(vec![asset_server.load("guy.glb#Animation0")]));
 }
 
 #[derive(Resource)]
@@ -69,7 +84,7 @@ fn main() {
         })*/
         .add_plugins(DefaultPlugins)
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
-        .add_systems(Update, setup_scene_once_loaded)
+        .add_systems(Update, (setup_scene_once_loaded, setup_ground))
         //.add_plugins(RapierDebugRenderPlugin::default())
         .add_systems(Startup, setup)
         //.add_system(controls)
