@@ -4,6 +4,9 @@ use bevy_rapier3d::prelude::*;
 #[derive(Component)]
 struct Player;
 
+#[derive(Resource)]
+struct Animations(Vec<Handle<AnimationClip>>);
+
 fn setup_ground(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -31,7 +34,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     commands.spawn(PointLightBundle {
         point_light: PointLight {
-            intensity: 1500.0,
+            intensity: 2500.0,
             shadows_enabled: true,
             ..default()
         },
@@ -60,18 +63,28 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         }
     }
 
-    commands.insert_resource(Animations(vec![asset_server.load("guy.glb#Animation0")]));
+    let animations : Vec<Handle<AnimationClip>>= 
+        (1..=4)
+        .map(|i| format!("guy.glb#Animation{:?}", i))
+        .map(|name| {
+            println!("Loading {}", name);
+            asset_server.load(name)
+        }
+        )
+        .into_iter()
+        .collect::<Vec<_>>();
+    commands.insert_resource(Animations(animations));
 }
-
-#[derive(Resource)]
-struct Animations(Vec<Handle<AnimationClip>>);
 
 fn setup_scene_once_loaded(
     animations: Res<Animations>,
     mut players: Query<&mut AnimationPlayer, Added<AnimationPlayer>>,
 ) {
+    //1 Idle
+    //2 Run
+    //3 Walk
     for mut player in &mut players {
-        player.play(animations.0[0].clone_weak()).repeat();
+        player.play(animations.0[2].clone_weak()).repeat();
     }
 }
 fn main() {
