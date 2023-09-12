@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
@@ -5,7 +7,14 @@ use bevy_rapier3d::prelude::*;
 struct Player;
 
 #[derive(Resource)]
-struct Animations(Vec<Handle<AnimationClip>>);
+struct Animations {
+    idle: Handle<AnimationClip>,
+    walk: Handle<AnimationClip>,
+    run: Handle<AnimationClip>,
+}
+
+#[derive(Component, Default)]
+struct ActionTimer(Timer);
 
 fn setup_ground(
     mut commands: Commands,
@@ -42,51 +51,55 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         ..default()
     });
 
-    let tree_handle = asset_server.load("guy.glb#Scene0");
-    for x in -25..25 {
-        for z in -25..25 {
-            commands
-                .spawn(SceneBundle {
-                    scene: tree_handle.clone_weak(),
-                    transform: Transform::from_translation(Vec3::new(
-                        2.0 * x as f32,
-                        0.0,
-                        2.0 * z as f32,
-                    ))
-                    .with_scale(Vec3::splat(1.0)),
+    let guy = asset_server.load("guy.glb#Scene0");
+    commands
+        .spawn(SceneBundle {
+            scene: guy.clone_weak(),
+            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 0.0))
+                .with_scale(Vec3::splat(1.0)),
 
-                    ..default()
-                })
-                .insert(RigidBody::Fixed)
-                .insert(Collider::cuboid(0.4, 1.0, 0.4));
-            //.insert(ColliderDebugColor(Color::GREEN));
-        }
-    }
-
-    let animations : Vec<Handle<AnimationClip>>= 
-        (1..=4)
-        .map(|i| format!("guy.glb#Animation{:?}", i))
-        .map(|name| {
-            println!("Loading {}", name);
-            asset_server.load(name)
-        }
-        )
-        .into_iter()
-        .collect::<Vec<_>>();
-    commands.insert_resource(Animations(animations));
+            ..default()
+        })
+        .insert(RigidBody::Fixed)
+        .insert(Collider::cuboid(0.4, 1.0, 0.4));
+    //.insert(ColliderDebugColor(Color::GREEN));
+    commands.insert_resource(Animations {
+        walk: asset_server.load("guy.glb#Animation3"),
+        idle: asset_server.load("guy.glb#Animation1"),
+        run: asset_server.load("guy.glb#Animation2"),
+    });
 }
 
 fn setup_scene_once_loaded(
     animations: Res<Animations>,
     mut players: Query<&mut AnimationPlayer, Added<AnimationPlayer>>,
 ) {
-    //1 Idle
-    //2 Run
-    //3 Walk
+    
     for mut player in &mut players {
-        player.play(animations.0[2].clone_weak()).repeat();
+        println!("setup_scene_once_loaded");
+        player.play(animations.idle.clone_weak()).repeat();
     }
 }
+
+fn process_input(
+    keys: Res<Input<KeyCode>>,
+    animations: Res<Animations>,
+    mut players: Query<&mut AnimationPlayer>,
+) {
+    for mut animation_player in players.iter_mut() {
+        if keys.just_pressed(KeyCode::W) {
+            animation_player
+                .play_with_transition(animations.run.clone(), Duration::from_secs_f32(0.5))
+                .repeat();
+        }
+        if keys.just_released(KeyCode::W) {
+            animation_player
+                .play_with_transition(animations.idle.clone(), Duration::from_secs_f32(0.5))
+                .repeat();
+        }
+    }
+}
+
 fn main() {
     App::new()
         /*/.insert_resource(WindowDescriptor {
@@ -97,9 +110,9 @@ fn main() {
         })*/
         .add_plugins(DefaultPlugins)
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
-        .add_systems(Update, (setup_scene_once_loaded, setup_ground))
+        .add_systems(Update, (setup_scene_once_loaded, process_input))
         //.add_plugins(RapierDebugRenderPlugin::default())
-        .add_systems(Startup, setup)
+        .add_systems(Startup, (setup, setup_ground))
         //.add_system(controls)
         .run();
 }
