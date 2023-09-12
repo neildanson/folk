@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier3d::prelude::*;
 
 #[derive(Component)]
@@ -39,7 +40,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             .with_scale(Vec3::splat(9.)),
         ..default()
     };
-    commands.spawn(camera).insert(Player);
+    commands.spawn(camera);
 
     commands.spawn(PointLightBundle {
         point_light: PointLight {
@@ -60,6 +61,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
             ..default()
         })
+        .insert(Player)
         .insert(RigidBody::Fixed)
         .insert(Collider::cuboid(0.4, 1.0, 0.4));
     //.insert(ColliderDebugColor(Color::GREEN));
@@ -74,7 +76,6 @@ fn setup_scene_once_loaded(
     animations: Res<Animations>,
     mut players: Query<&mut AnimationPlayer, Added<AnimationPlayer>>,
 ) {
-    
     for mut player in &mut players {
         println!("setup_scene_once_loaded");
         player.play(animations.idle.clone_weak()).repeat();
@@ -87,14 +88,39 @@ fn process_input(
     mut players: Query<&mut AnimationPlayer>,
 ) {
     for mut animation_player in players.iter_mut() {
-        if keys.just_pressed(KeyCode::W) {
+        let transition_duration = Duration::from_secs_f32(0.1);
+        if keys.just_pressed(KeyCode::W) && keys.pressed(KeyCode::ShiftLeft) {
             animation_player
-                .play_with_transition(animations.run.clone(), Duration::from_secs_f32(0.5))
+                //.start(animations.run.clone())
+                .play_with_transition(animations.run.clone(), transition_duration)
                 .repeat();
         }
+
+        if keys.pressed(KeyCode::W) && keys.just_pressed(KeyCode::ShiftLeft) {
+            animation_player
+                //.start(animations.run.clone())
+                .play_with_transition(animations.run.clone(), transition_duration)
+                .repeat();
+        }
+
+        if keys.just_pressed(KeyCode::W) && !keys.pressed(KeyCode::ShiftLeft) {
+            animation_player
+                //.start(animations.walk.clone())
+                .play_with_transition(animations.walk.clone(), transition_duration)
+                .repeat();
+        }
+
+        if keys.pressed(KeyCode::W) && keys.just_released(KeyCode::ShiftLeft) {
+            animation_player
+                //.start(animations.walk.clone())
+                .play_with_transition(animations.walk.clone(), transition_duration)
+                .repeat();
+        }
+
         if keys.just_released(KeyCode::W) {
             animation_player
-                .play_with_transition(animations.idle.clone(), Duration::from_secs_f32(0.5))
+                //.start(animations.idle.clone())
+                .play_with_transition(animations.idle.clone(), transition_duration)
                 .repeat();
         }
     }
@@ -110,6 +136,7 @@ fn main() {
         })*/
         .add_plugins(DefaultPlugins)
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
+        .add_plugins(WorldInspectorPlugin::new())
         .add_systems(Update, (setup_scene_once_loaded, process_input))
         //.add_plugins(RapierDebugRenderPlugin::default())
         .add_systems(Startup, (setup, setup_ground))
